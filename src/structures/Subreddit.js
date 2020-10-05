@@ -12,7 +12,7 @@ class Subreddit {
         this.raw = data;
         this.client = client;
         /* Basic */
-        // Glob //
+        // Global //
         var basic = data.basic.data;
         this.basic = data.basic;
         //
@@ -22,9 +22,28 @@ class Subreddit {
          * @deprecated This always returns `t5`.
          */
         this.kind = data.basic.kind;
+        /* Data */
         /**
-         * 
+         * The background color of the clients user flair.
+         * @returns {?String} The hex color code.
          */
+        this.userFlairBackgroundColor = basic.user_flair_background_color;
+        /**
+         * The html for submissions to this subreddit.
+         * @returns {?String} The html code. 
+         */
+        this.submitTextHtml = basic.submit_text_html;
+        /**
+         * If this subreddit restricts posting.
+         * @returns {?Boolean}
+         */
+        this.restrictPosting = basic.restrict_posting;
+        /**
+         * If the client is banned from the subreddit.
+         * @returns {?Boolean}
+         */
+        this.userIsBanned = basic.user_is_banned;
+
     }
 }
 
