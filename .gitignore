@@ -1,0 +1,4 @@
+node_modules
+src/notes
+test/index.js
+package-lock.json

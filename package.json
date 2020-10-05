@@ -1,0 +1,25 @@
+{
+  "name": "js-reddit.js",
+  "version": "1.0.9",
+  "description": "An advanced promise based wrapper with better documentation. ",
+  "main": "index.js",
+  "publishConfig": { "registry": "https://registry.npmjs.org/" },
+  "scripts": {
+    "test": "nodemon test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ObertoIsOBS/reddit.js.git"
+},
+  "keywords": [
+    "reddit",
+    "reddit.js",
+    "redditapi"
+  ],
+  "author": "OBSCode",
+  "dependencies": {
+    "fetch": "^1.1.0",
+    "reddit": "^1.2.0",
+    "uuid-class": "^0.9.0"
+  }
+}
