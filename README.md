@@ -36,3 +36,5 @@ Want to become a developer on this project? Email me at [obs@obs.wtf](mailto:obs
 
 Please double check JSDoc notes before making a pull request or issue.
 
+## Support
+If you need help with this wrapper please join our [support server](https://discord.gg/C2AEdvj).
