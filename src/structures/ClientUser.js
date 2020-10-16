@@ -5,6 +5,10 @@ const Reddit = require('../client/RedditClient');
 const Client = require('../client/Client');
 const Fullname = require('./Fullname');
 const UserPrefsManager = require('../managers/UserPrefsManager');
+const UserList = require('./UserList');
+const Trophy = require('./Trophy');
+const SubredditKarma = require('./SubredditKarma');
+const ClientSubreddit = require('./ClientSubreddit');
 
 /**
  * Represents a client user.
@@ -25,37 +29,54 @@ this.client = client;
  * @type {Object}
  */
 this.raw = data;
+
+/* Create an array of trophies */
+function trophyArray(arr){
+    var trophyList = [];
+    arr.forEach(trophy => {
+        trophyList.push(new Trophy(trophy.data, client));
+    });
+        return trophyList;
+};
 /**
  * An array of trophies the user has.
- * @type {Array<Object>} 
+ * @type {Array<Trophy>} 
  */
-this.trophies = data.trophies.data.trophies;
+this.trophies = trophyArray(data.trophies.data.trophies);
 /**
  * A UserPrefsManager.
  * @type {UserPrefsManager}
  */
 this.prefs = new UserPrefsManager(client, data.prefs);
+
+/* Create an array of karma */
+function karmaArray(arr){
+    var karmaList = [];
+    arr.forEach(karma => {
+        karmaList.push(new SubredditKarma(karma, client));
+    });
+        return karmaList;
+};
 /**
  * A breakdown of this user's karma.
- * @type {Array<Object>}
+ * @type {Array<SubredditKarma>}
  */
-this.karma = data.karma;
+this.karma = karmaArray(data.karma);
 /**
- * Limited information on this user's subreddit.
- * @type {Object}
+ * This users subreddit. Also known as profile page.
+ * @type {ClientSubreddit}
  */
-this.subreddit = user.subreddit;
+this.subreddit = new ClientSubreddit(user.subreddit, client);
 /**
  * Information on user features.
  * @type {Object}
  */
 this.features = user.features;
 /**
- * An array of this users friends. A reddit `UserList`.
- * @type {Array<Object>}
- * @readonly
+ * A reddit `UserList` of this users friends.
+ * @type {UserList}
  */
-this.friends = data.friends.data.children;
+this.friends = new UserList(data.friends.data);
 /* --------------------------------
     User Args
 ----------------------------------- */
