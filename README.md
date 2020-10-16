@@ -23,7 +23,6 @@ const opts = {
   };
 const client = new Reddit.Client();
 
-
 client.login(opts);
 
 client.on("ready", () => {
