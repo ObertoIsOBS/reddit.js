@@ -9,10 +9,7 @@ Reddit.js an intuitive wrapper that lets you interact easily with the reddit api
 ## Installation
 Ignore unmet dependency warnings. They are optional.
 
-
-Without UUID class: `npm i js-reddit.js`.
-
-With UUID class: `npm i js-reddit.js uuid-class`
+`npm i js-reddit.js`.
 
 ## Example Usage
 ```js
@@ -24,11 +21,14 @@ const opts = {
     appSecret: 'appSecret',
     userAgent: "Anything goes."
   };
-const client = new Reddit.Client(opts);
+const client = new Reddit.Client();
 
-client.fetchSelf().then(user => {
-console.log(`This client is logged into ${user.name}`);
-});
+
+client.login(opts);
+
+client.on("ready", () => {
+  console.log(`Logged in as ${client.user.name}!`);
+})
 ```
 
 ## Contributing
