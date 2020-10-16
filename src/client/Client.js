@@ -6,22 +6,268 @@ const ClientUser = require('../structures/ClientUser');
 const Collection = require('../structures/Collection');
 const Fullname = require('../structures/Fullname');
 const Subreddit = require('../structures/Subreddit');
+const { EventEmitter } = require("events");
+const debug = require('debug')('reddit');
+const get = require('simple-get');
+const querystring = require('querystring');
+
+const TOKEN_BASE_URL = 'https://www.reddit.com/api/v1/access_token';
+const API_BASE_URL = 'https://oauth.reddit.com';
+const REQUEST_TIMEOUT = 30 * 1000;
 
 /**
  * Represents a reddit client.
  * @extends RedditClient
- * @example new Reddit.Client({
- * username: "Cool",
- * password: "Cooler",
- * appId: "Nice ID",
- * appSecret: "Super secret",
- * userAgent: "Anything goes"
- * });
+ * @example new Reddit.Client()
+ * @event ready Emitted when the client logs into reddit.
  */
-class Client extends Reddit {
-    constructor(opts) {
-        super(opts)
+class Client extends EventEmitter {
+    constructor() {
+        super()
+    }
+/* API Managers */
+async get (url, data = {}) {
+    return this._sendRequest('GET', API_BASE_URL + url, data)
+  }
+
+  async post (url, data = {}) {
+    return this._sendRequest('POST', API_BASE_URL + url, data)
+  }
+
+  async patch (url, data = {}) {
+    return this._sendRequest('PATCH', API_BASE_URL + url, data)
+  }
+
+  async put (url, data = {}) {
+    return this._sendRequest('PUT', API_BASE_URL + url, data)
+  }
+
+  async delete (url, data = {}) {
+    return this._sendRequest('DELETE', API_BASE_URL + url, data)
+  }
+
+  async _sendRequest (method, url, data) {
+    const token = await this._getToken()
+    const body = await this._makeRequest(method, url, data, token)
+
+    const errors = body && body.json && body.json.errors
+    if (errors && errors.length > 0) {
+      const err = new Error(
+        errors.map(
+          error => `${error[0]}: ${error[1]} (${error[2]})`
+        ).join('. ')
+      )
+      err.code = errors[0][0]
+      err.codes = errors.map(error => error[0])
+      throw err
+    }
+
+    return body
+  }
+
+  async _getToken () {
+    if (Date.now() / 1000 <= this.tokenExpireDate) {
+      return this.token
+    }
+
+    return new Promise((resolve, reject) => {
+      get.concat({
+        url: TOKEN_BASE_URL,
+        method: 'POST',
+        form: {
+          grant_type: 'password',
+          username: this.username,
+          password: this.password
+        },
+        headers: {
+          authorization: `Basic ${Buffer.from(`${this.appId}:${this.appSecret}`).toString('base64')}`,
+          'user-agent': this.userAgent
+        },
+        json: true,
+        timeout: REQUEST_TIMEOUT
+      }, (err, res, body) => {
+        if (err) {
+          err.message = `Error getting token: ${err.message}`
+          return reject(err)
+        }
+
+        const statusType = Math.floor(res.statusCode / 100)
+
+        if (statusType === 2) {
+          const {
+            access_token: accessToken,
+            expires_in: expiresIn,
+            token_type: tokenType
+          } = body
+
+          if (tokenType == null || accessToken == null) {
+            return reject(new Error(`Cannot obtain token for username ${this.username}. ${body.error}.`))
+          }
+
+          this.token = `${tokenType} ${accessToken}`
+          // Shorten token expiration time by half to avoid race condition where
+          // token is valid at request time, but server will reject it
+          this.tokenExpireDate = ((Date.now() / 1000) + expiresIn) / 2
+
+          return resolve(this.token)
+        } else if (statusType === 4) {
+          return reject(
+            new Error(`Cannot obtain token for username ${this.username}. Did you give ${this.username} access in your Reddit App Preferences? ${body.error}. Status code: ${res.statusCode}`)
+          )
+        } else {
+          return reject(
+            new Error(`Cannot obtain token for username ${this.username}. ${body.error}. Status code: ${res.statusCode}`)
+          )
+        }
+      })
+    })
+  }
+
+  _makeRequest (method, url, data, token) {
+    return new Promise((resolve, reject) => {
+      const opts = {
+        url: url,
+        method: method,
+        headers: {
+          authorization: token,
+          'user-agent': this.userAgent
+        },
+        timeout: REQUEST_TIMEOUT
+      }
+
+      // Request JSON API response type
+      data.api_type = 'json'
+      opts.json = true
+
+      if (method === 'GET') {
+        opts.url += '?' + querystring.encode(data)
+      } else if (method === 'POST') {
+        opts.form = data
+      } else if (method === 'PATCH' || method === 'PUT' || method === 'DELETE') {
+        opts.body = data
+      }
+
+      debug(`Making ${method} request to ${url}`)
+
+      get.concat(opts, (err, res, body) => {
+        if (err) {
+          err.message = `API error: ${err.message}`
+          return reject(err)
+        }
+
+        debug('Got a response with statusCode: ' + res.statusCode)
+
+        const statusType = Math.floor(res.statusCode / 100)
+
+        if (statusType === 2) {
+          return resolve(body)
+        } else {
+          return reject(
+            new Error(`API error: ${body.message}. Status code: ${res.statusCode}`)
+          )
+        }
+      })
+    })
+  }
+/* END OF API MANAGERS */
+
+    /**
+     * Logs the client into reddit.
+     * @param {object} opts Client options
+     * @param {string} opts.username The username of the client user.
+     * @param {string} opts.password The password of the client user.
+     * @param {string} opts.appId The Id of the client application.
+     * @param {string} opts.appSecret The client secret.
+     * @param {string} opts.userAgent The user agent
+     * @example const opts = {
+    username: 'RedditGuy',
+    password: 'RedditGuy',
+    appId: 'secretID',
+    appSecret: 'appSecret',
+    userAgent: "Anything goes."
+  };
+  client.login(opts);
+     */
+    async login(opts){
+
         this.opts = opts;
+        this.username = opts.username;
+        this.password = opts.password;
+        this.appId = opts.appId;
+        this.appSecret = opts.appSecret;
+        this.userAgent = opts.userAgent;
+        
+        if (!opts) throw new RedditAPIError("Invalid login options provided.");
+        
+        var getters = {
+            user: async () => {
+                var res = await this.get('/api/v1/me');
+
+                if (!res) throw new RedditAPIError("Unable to fetch user.")
+
+                if (!res) throw new RedditAPIError("Unable to fetch userrs.")
+
+                if (res.errors && res.errors.length > 0) throw new RedditAPIError("fetchSelfError: " + res.errors.map(err => err).join("\n"));
+
+                return res;
+            },
+            karma: async () => {
+                var res = await this.get('/api/v1/me/karma');
+
+                if (!res) throw new RedditAPIError("Unable to fetch user karma.")
+
+                if (!res) throw new RedditAPIError("Unable to fetch user karma.")
+
+                if (res.errors && res.errors.length > 0) throw new RedditAPIError("fetchSelfError: " + res.errors.map(err => err).join("\n"));
+                return res.data;
+            },
+            prefs: async () => {
+                var res = await this.get('/api/v1/me/prefs');
+
+                if (!res) throw new RedditAPIError("Unable to fetch user prefs.")
+
+                if (!res) throw new RedditAPIError("Unable to fetch user prefs.")
+
+                if (res.errors && res.errors.length > 0) throw new RedditAPIError("fetchSelfError: " + res.errors.map(err => err).join("\n"));
+                return res;
+            },
+            trophies: async () => {
+                var res = await this.get('/api/v1/me/trophies');
+
+                if (!res) throw new RedditAPIError("Unable to fetch user trophies.")
+
+                if (!res) throw new RedditAPIError("Unable to fetch user trophies.")
+
+                if (res.errors && res.errors.length > 0) throw new RedditAPIError("fetchSelfError: " + res.errors.map(err => err).join("\n"));
+                return res;
+            },
+            friends: async () => {
+                var res = await this.get('/api/v1/me/friends');
+
+                if (!res) throw new RedditAPIError("Unable to fetch user friends.")
+
+                if (!res) throw new RedditAPIError("Unable to fetch user friends.")
+
+                if (res.errors && res.errors.length > 0) throw new RedditAPIError("fetchSelfError: " + res.errors.map(err => err).join("\n"));
+                return res;
+            }
+        };
+        var data = {
+            user: await getters.user(),
+            karma: await getters.karma(),
+            prefs: await getters.prefs(),
+            trophies: await getters.trophies(),
+            friends: await getters.friends(),
+        };
+
+        /**
+         * Represents the clients reddit user.
+         * @type {ClientUser} 
+         */
+        this.user = new ClientUser(this, data);
+
+        this.emit("ready");
+   
     }
     async fetchSelf() {
 
