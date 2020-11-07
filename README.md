@@ -13,7 +13,7 @@ Ignore unmet dependency warnings. They are optional.
 
 ## Example Usage
 ```js
-const Reddit = require('../src/index.js');
+const Reddit = require('js-reddit.js'); //Install reddit.js by running npm install js-reddit.js in your terminal. (Must have NodeJS Installed)
 const opts = {
     username: 'RedditGuy',
     password: 'RedditGuy',
