@@ -11,6 +11,10 @@ module.exports = {
     RedditPost: require('./structures/RedditPost'),
     UUID: require('./structures/UUID'),
     Subreddit: require('./structures/Subreddit'),
+    ClientSubreddit: require('./structures/ClientSubreddit'),
+    Trophy: require('./structures/Trophy'),
+    UserList: require('./structures/UserList'),
+    SubredditKarma: require('./structures/SubredditKarma'),
     /* Managers */
     UserPrefsManager: require('./managers/UserPrefsManager')
 }
