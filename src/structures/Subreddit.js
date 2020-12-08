@@ -43,7 +43,22 @@ class Subreddit {
          * @returns {?Boolean}
          */
         this.userIsBanned = basic.user_is_banned;
-
+        /**
+         * If free form reports are enabled in the subreddit.
+         * @returns {?Boolean}
+         */
+        this.freeFormReports = basic.free_form_reports;
+        /**
+         * If the wiki is enabled in the subreddit.
+         * @returns {?Boolean}
+         */
+        this.wikiEnabled = basic.wiki_enabled;
+        /**
+         * If the client is muted in the subreddit.
+         * @returns {?Boolean}
+         */
+        this.userIsMuted = basic.user_is_muted;
+        
     }
 }
 
